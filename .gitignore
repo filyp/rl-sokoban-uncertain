@@ -2,5 +2,5 @@
 *egg-info
 .vscode
 venv
-gym-sokoban-full-repo
+gym-sokoban
 .sokoban_cache
