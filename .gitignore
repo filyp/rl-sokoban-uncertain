@@ -1,3 +1,6 @@
 *__pycache__
 *egg-info
 .vscode
+venv
+gym-sokoban-full-repo
+.sokoban_cache
