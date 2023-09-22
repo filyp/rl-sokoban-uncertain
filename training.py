@@ -31,6 +31,7 @@ from model import ACModel
 import gymnasium as gym
 sys.path.append((repo_root / "gym-sokoban").as_posix())
 import gym_sokoban
+from gym_sokoban.envs.sokoban_uncertain import MapSelector
 
 RL_STORAGE = (repo_root / "storage").as_posix()
 os.environ["RL_STORAGE"] = (repo_root / "storage").as_posix()
@@ -43,7 +44,7 @@ class Args:
     # env = 'MiniGrid-DoorKey-5x5-v0'    # nrme of the environment to train on (REQUIRED)
     maps = repo_root / "custom_maps/1player_2color_5x5"
     
-    model = "tadek"            # name of the model (default: {ENV}_{ALGO}_{TIME})
+    model = "ziom"            # name of the model (default: {ENV}_{ALGO}_{TIME})
     seed = 1                 # random seed (default: 1)
     log_interval = 1         # number of updates between two logs (default: 1)
     save_interval = 10       # number of updates between two saves (default: 10, 0 means no saving)
@@ -97,12 +98,18 @@ utils.seed(args.seed)
 txt_logger.info(f"Device: {device}\n")
 
 # Load environments
+map_selector = MapSelector(
+    custom_maps=args.maps, 
+    curriculum_cutoff=3,
+    # hardcode_level=-1,  # None
+)
+
 envs = []
 for i in range(args.procs):
     env = gym.make(
         args.env, 
-        custom_maps=args.maps, 
         max_episode_steps=args.max_episode_steps,
+        map_selector=map_selector,
     )
     env.reset()
     envs.append(env)
@@ -181,13 +188,13 @@ while num_frames < args.frames:
         header += ["num_frames_" + key for key in num_frames_per_episode.keys()]
         data += num_frames_per_episode.values()
         header += ["curr_cutoff"]
-        data += [len(envs[0].unwrapped.curriculum_scores)]
+        data += [len(map_selector.curriculum_scores)]
         header += ["entropy", "value", "policy_loss", "value_loss", "grad_norm"]
         data += [logs["entropy"], logs["value"], logs["policy_loss"], logs["value_loss"], logs["grad_norm"]]
 
         # print which levels are learned well
         learned_levels = []
-        for score in envs[0].unwrapped.curriculum_scores:
+        for score in map_selector.curriculum_scores:
             if score < args.required_num_steps_to_learn_level:
                 print("█", end="")
                 learned_levels.append(1)
@@ -222,7 +229,7 @@ while num_frames < args.frames:
 
     
     if np.mean(learned_levels) > 0.8:
-        envs[0].unwrapped.curriculum_scores.append(args.max_episode_steps)
+        map_selector.curriculum_scores.append(args.max_episode_steps)
     
     # TODO use some longer bursts of exploration
     # TODO the longer you are in the episode, the higher exploration rate should be

@@ -16,6 +16,7 @@ from utils import device
 
 sys.path.append((repo_root / "gym-sokoban").as_posix())
 import gym_sokoban
+from gym_sokoban.envs.sokoban_uncertain import MapSelector
 
 RL_STORAGE = (repo_root / "storage").as_posix()
 os.environ["RL_STORAGE"] = (repo_root / "storage").as_posix()
@@ -48,9 +49,10 @@ _args = argparse.Namespace(
     env="SokobanUncertain",
     model="tadek",
     episodes=1,
+    manual=True,
     gif="test",
     maps = repo_root / "custom_maps/1player_2color_5x5",
-    max_episode_steps = 10  # maximum number of steps per episode (default: 200)
+    max_episode_steps = 40  # maximum number of steps per episode (default: 200)
 )
 args = parser.parse_args([], namespace=_args)
 
@@ -67,19 +69,26 @@ utils.seed(args.seed)
 # Set device
 print(f"Device: {device}\n")
 
+map_selector = MapSelector(
+    custom_maps=args.maps, 
+    curriculum_cutoff=20,
+    hardcode_level=-1,  # None
+)
+
 # Load environment
 env = gym.make(
     args.env, 
-    custom_maps=args.maps, 
     max_episode_steps=args.max_episode_steps,
+    map_selector=map_selector,
     # seed=args.seed,
     # render_mode="human"
-    curriculum_cutoff=20,
 )
 for _ in range(args.shift):
     env.reset()
 print("Environment loaded\n")
 
+
+# %%
 
 # %%
 
@@ -134,38 +143,34 @@ def get_manual_action(obs):
 
 if args.gif:
     from array2gif import write_gif
-
     frames = []
 
 env.reset()
 
 # Create a window to view the environment
-# Create the initial plot.
 fig, ax = plt.subplots()
 plt.ion()
 plt.show(block=False)
-# img = env.render()
-# ax.imshow(img)
-# plt.draw()
-# plt.pause(0.1)
 
 
 for episode in range(args.episodes):
     obs, _ = env.reset()
 
     while True:
-        img = env.render()
-        ax.imshow(img)
+        # img = env.render()
+        ax.imshow(obs)
         plt.draw()
         plt.pause(0.05)
 
         if args.gif:
             frames.append(numpy.moveaxis(obs, 2, 0))
 
-        action = get_manual_action(_)
-        if action == 0:
-            break
-        # action = agent.get_action(obs)
+        if args.manual:
+            action = get_manual_action(_)
+            if action == 0:
+                break
+        else:
+            action = agent.get_action(obs)
 
         obs, reward, terminated, truncated, _ = env.step(action)
         done = terminated | truncated
@@ -176,8 +181,8 @@ for episode in range(args.episodes):
                 frames.append(numpy.moveaxis(obs, 2, 0))
             frames.extend([frames[-1]] * 5)
 
-            img = env.render()
-            ax.imshow(img)
+            # img = env.render()
+            ax.imshow(obs)
             plt.draw()
             plt.pause(0.05)
 
@@ -192,6 +197,7 @@ if args.gif:
 _ = get_manual_action(_)
 plt.ioff()
 plt.close()
+
 
 
 # %%
