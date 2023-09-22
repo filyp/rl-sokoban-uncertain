@@ -4,3 +4,4 @@
 venv
 gym-sokoban
 .sokoban_cache
+**/*.gif
