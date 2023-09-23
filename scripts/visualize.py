@@ -41,7 +41,7 @@ parser.add_argument("--text", action="store_true", default=False, help="add a GR
 
 _args = argparse.Namespace(
     env="SokobanUncertain",
-    model="jano",
+    model="typek",
     episodes=10,
     manual=False,
     gif="test",
@@ -102,19 +102,19 @@ def get_manual_action(obs):
 
             if event.key == keyboard.Key.up:
                 # print("up")
-                return 1
+                return 0
             elif event.key == keyboard.Key.down:
                 # print("down")
-                return 2
+                return 1
             elif event.key == keyboard.Key.left:
                 # print("left")
-                return 3
+                return 2
             elif event.key == keyboard.Key.right:
                 # print("right")
-                return 4
+                return 3
             elif event.key == keyboard.Key.esc:
                 # print("esc")
-                return 0
+                return -1
             else:
                 # print('Received event {}'.format(event))
                 pass
@@ -149,7 +149,7 @@ for episode in range(args.episodes):
         # act on the observation
         if args.manual:
             action = get_manual_action(_)
-            if action == 0:
+            if action == -1:
                 break  # exit on esc
         else:
             action = agent.get_action(obs)

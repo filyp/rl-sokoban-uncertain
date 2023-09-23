@@ -9,6 +9,8 @@
 # done:
 # - some clever adaptive curriculum
 
+# TODO how is it possible to have O states?? is it true or display bug?
+
 # %%
 import argparse
 import sys
@@ -44,18 +46,18 @@ class Args:
     # env = 'MiniGrid-DoorKey-5x5-v0'    # nrme of the environment to train on (REQUIRED)
     maps = repo_root / "custom_maps/1player_2color_5x5"
     
-    model = "jano"            # name of the model (default: {ENV}_{ALGO}_{TIME})
+    model = None            # name of the model (default: {ENV}_{ALGO}_{TIME})
     seed = 1                 # random seed (default: 1)
     log_interval = 1         # number of updates between two logs (default: 1)
     save_interval = 10       # number of updates between two saves (default: 10, 0 means no saving)
     procs = 8             # number of processes (default: 16)
-    frames = 200000           # number of frames of training (default: 1e7)
+    frames = 1600000           # number of frames of training (default: 1e7)
     max_episode_steps = 10  # maximum number of steps per episode (default: 200)
 
     # parameters for main algorithm
     epochs = 4               # number of epochs for PPO (default: 4)
     batch_size = 256         # batch size for PPO (default: 256)
-    frames_per_proc = 20   # number of frames per process before update (default: 5 for A2C and 128 for PPO)
+    frames_per_proc = 15   # number of frames per process before update (default: 5 for A2C and 128 for PPO)
     discount = 0.99          # discount factor (default: 0.99)
     lr = 0.001               # learning rate (default: 0.001)
     gae_lambda = 0.95        # lambda coefficient in GAE formula (default: 0.95, 1 means no gae)
@@ -99,7 +101,7 @@ txt_logger.info(f"Device: {device}\n")
 # Load environments
 map_selector = MapSelector(
     custom_maps=args.maps, 
-    curriculum_cutoff=4,
+    curriculum_cutoff=9,
     # hardcode_level=-1,  # None
 )
 envs = []
@@ -203,9 +205,14 @@ while num_frames < args.frames:
                 learned_levels.append(0)
         print(">")
 
+        # txt_logger.info(
+        #     "U {} | F {:06} | FPS {:04.0f} | D {} | rR:μσmM {:6.2f} {:6.2f} {:6.2f} {:6.2f} | F:μσmM {:5.2f} {:5.2f} {:5.2f} {:5.2f} | curr_cutoff {:2.0f} | H {:.3f} | V {:.3f} | pL {:.3f} | vL {:.3f} | ∇ {:.3f}"
+        #     .format(*data))
+
+        # only show num frames, fps, mean F
         txt_logger.info(
-            "U {} | F {:06} | FPS {:04.0f} | D {} | rR:μσmM {:6.2f} {:6.2f} {:6.2f} {:6.2f} | F:μσmM {:5.2f} {:5.2f} {:5.2f} {:5.2f} | curr_cutoff {:2.0f} | H {:.3f} | V {:.3f} | pL {:.3f} | vL {:.3f} | ∇ {:.3f}"
-            .format(*data))
+            f"F{num_frames:06} | FPS {fps:4.0f} | mean frames per episode: {num_frames_per_episode['mean']:5.2f}"
+        )
 
         header += ["return_" + key for key in return_per_episode.keys()]
         data += return_per_episode.values()
@@ -228,7 +235,8 @@ while num_frames < args.frames:
         # txt_logger.info("Status saved")
 
     
-    if np.mean(learned_levels) > 0.8:
+    # if np.mean(learned_levels) > 0.9:
+    if num_frames_per_episode["mean"] < 3.5:
         map_selector.curriculum_scores.append(args.max_episode_steps)
     
     # TODO use some longer bursts of exploration
