@@ -25,13 +25,15 @@ class ACModel(nn.Module, torch_ac.RecurrentACModel):
 
         # Define image embedding
         self.image_conv = nn.Sequential(
-            nn.Conv2d(3, 32, (2, 2)),
+            nn.Conv2d(3, 16, (3, 3), padding=1),
             nn.ReLU(),
-            nn.Conv2d(32, 64, (2, 2)),
+            nn.Conv2d(16, 32, (3, 3), padding=1),
             nn.ReLU(),
-            nn.Conv2d(64, 128, (2, 2)),
+            nn.Conv2d(32, 64, (3, 3), padding=1),
             nn.ReLU(),
-            nn.Conv2d(128, 256, (2, 2)),
+            nn.Conv2d(64, 128, (3, 3), padding=0),
+            nn.ReLU(),
+            nn.Conv2d(128, 256, (3, 3), padding=0),
             nn.ReLU(),
         )
         n = obs_space["image"][0]

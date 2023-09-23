@@ -20,20 +20,20 @@ import torch_ac
 import numpy as np
 import tensorboardX
 
-
-repo_root = Path(__file__).parent
-
+import subprocess
+repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')
+repo_root = Path(repo_root)
 sys.path.append(repo_root.as_posix())
+sys.path.append((repo_root / "gym-sokoban").as_posix())
+
 import utils
 from utils import device
 from model import ACModel
 
 import gymnasium as gym
-sys.path.append((repo_root / "gym-sokoban").as_posix())
 import gym_sokoban
 from gym_sokoban.envs.sokoban_uncertain import MapSelector
 
-RL_STORAGE = (repo_root / "storage").as_posix()
 os.environ["RL_STORAGE"] = (repo_root / "storage").as_posix()
 
 # %%
@@ -44,19 +44,18 @@ class Args:
     # env = 'MiniGrid-DoorKey-5x5-v0'    # nrme of the environment to train on (REQUIRED)
     maps = repo_root / "custom_maps/1player_2color_5x5"
     
-    model = "ziom"            # name of the model (default: {ENV}_{ALGO}_{TIME})
+    model = "jano"            # name of the model (default: {ENV}_{ALGO}_{TIME})
     seed = 1                 # random seed (default: 1)
     log_interval = 1         # number of updates between two logs (default: 1)
     save_interval = 10       # number of updates between two saves (default: 10, 0 means no saving)
     procs = 8             # number of processes (default: 16)
-    frames = 50000           # number of frames of training (default: 1e7)
+    frames = 200000           # number of frames of training (default: 1e7)
     max_episode_steps = 10  # maximum number of steps per episode (default: 200)
-    required_num_steps_to_learn_level = 9
 
     # parameters for main algorithm
     epochs = 4               # number of epochs for PPO (default: 4)
     batch_size = 256         # batch size for PPO (default: 256)
-    frames_per_proc = 50   # number of frames per process before update (default: 5 for A2C and 128 for PPO)
+    frames_per_proc = 20   # number of frames per process before update (default: 5 for A2C and 128 for PPO)
     discount = 0.99          # discount factor (default: 0.99)
     lr = 0.001               # learning rate (default: 0.001)
     gae_lambda = 0.95        # lambda coefficient in GAE formula (default: 0.95, 1 means no gae)
@@ -91,8 +90,8 @@ tb_writer = tensorboardX.SummaryWriter(model_dir)
 txt_logger.info("{}\n".format(" ".join(sys.argv)))
 txt_logger.info("{}\n".format(args))
 
-# Set seed for all randomness sources
-utils.seed(args.seed)
+# # Set seed for all randomness sources
+# utils.seed(args.seed)
 
 # Set device
 txt_logger.info(f"Device: {device}\n")
@@ -100,10 +99,9 @@ txt_logger.info(f"Device: {device}\n")
 # Load environments
 map_selector = MapSelector(
     custom_maps=args.maps, 
-    curriculum_cutoff=3,
+    curriculum_cutoff=4,
     # hardcode_level=-1,  # None
 )
-
 envs = []
 for i in range(args.procs):
     env = gym.make(
@@ -111,7 +109,8 @@ for i in range(args.procs):
         max_episode_steps=args.max_episode_steps,
         map_selector=map_selector,
     )
-    env.reset()
+    # TODO seeding may be broken, because numpy generator is global?
+    env.reset(seed=args.seed + 10000 * i)
     envs.append(env)
 txt_logger.info("Environments loaded\n")
 
@@ -195,8 +194,9 @@ while num_frames < args.frames:
         # print which levels are learned well
         learned_levels = []
         for score in map_selector.curriculum_scores:
-            if score < args.required_num_steps_to_learn_level:
-                print("█", end="")
+            if score < 10:
+                # print("█", end="")
+                print(str(score), end="")
                 learned_levels.append(1)
             else:
                 print(" ", end="")
@@ -204,7 +204,7 @@ while num_frames < args.frames:
         print(">")
 
         txt_logger.info(
-            "U {} | F {:06} | FPS {:04.0f} | D {} | rR:μσmM {:6.2f} {:6.2f} {:6.2f} {:6.2f} | F:μσmM {:3.0f} {:3.0f} {:3.0f} {:3.0f} | curr_cutoff {:2.0f} | H {:.3f} | V {:.3f} | pL {:.3f} | vL {:.3f} | ∇ {:.3f}"
+            "U {} | F {:06} | FPS {:04.0f} | D {} | rR:μσmM {:6.2f} {:6.2f} {:6.2f} {:6.2f} | F:μσmM {:5.2f} {:5.2f} {:5.2f} {:5.2f} | curr_cutoff {:2.0f} | H {:.3f} | V {:.3f} | pL {:.3f} | vL {:.3f} | ∇ {:.3f}"
             .format(*data))
 
         header += ["return_" + key for key in return_per_episode.keys()]
@@ -233,17 +233,5 @@ while num_frames < args.frames:
     
     # TODO use some longer bursts of exploration
     # TODO the longer you are in the episode, the higher exploration rate should be
-
-
-
-# %%
-# envs[0].unwrapped.curriculum_scores
-
-# %%
-# # print indexes where ==10
-# [i for i, x in enumerate(envs[0].unwrapped.curriculum_scores) if x == 10]
-
-# %%
-
 
 

@@ -4,67 +4,52 @@ import sys
 import os
 from pathlib import Path
 
-import numpy
+import numpy as np
 import gymnasium as gym
 from pynput import keyboard
 
-repo_root = Path(__file__).parent.parent
-
+import subprocess
+repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')
+repo_root = Path(repo_root)
 sys.path.append(repo_root.as_posix())
+sys.path.append((repo_root / "gym-sokoban").as_posix())
+
 import utils
 from utils import device
 
-sys.path.append((repo_root / "gym-sokoban").as_posix())
 import gym_sokoban
 from gym_sokoban.envs.sokoban_uncertain import MapSelector
 
-RL_STORAGE = (repo_root / "storage").as_posix()
 os.environ["RL_STORAGE"] = (repo_root / "storage").as_posix()
 
-# os.environ['QT_LOGGING_RULES'] = 'qt.qpa.*=false'  # suppress warnings and errors
-
-os.environ["QT_QPA_PLATFORM"] = "xcb"
+os.environ["QT_QPA_PLATFORM"] = "xcb" # to prevent warnings on wayland
 
 # %%
-
 # Parse arguments
-
 # fmt: off
 parser = argparse.ArgumentParser()
 parser.add_argument("--env", help="name of the environment to be run (REQUIRED)")
 parser.add_argument("--model", help="name of the trained model (REQUIRED)")
 parser.add_argument("--seed", type=int, default=0, help="random seed (default: 0)")
-parser.add_argument("--shift", type=int, default=0, help="number of times the environment is reset at the beginning (default: 0)")
 parser.add_argument("--argmax", action="store_true", default=False, help="select the action with highest probability (default: False)")
 parser.add_argument("--pause", type=float, default=0.1, help="pause duration between two consequent actions of the agent (default: 0.1)")
 parser.add_argument("--gif", type=str, default=None, help="store output as gif with the given filename")
 parser.add_argument("--episodes", type=int, default=1000000, help="number of episodes to visualize")
 parser.add_argument("--memory", action="store_true", default=False, help="add a LSTM to the model")
 parser.add_argument("--text", action="store_true", default=False, help="add a GRU to the model")
-# parser.add_argument("--maps", type=str, default=None, help="path to custom maps")
-# parser.add_argument("--max_episode_steps", type=int, default=10, help="maximum number of steps per episode (default: 200)")
 # fmt: on
 
 _args = argparse.Namespace(
     env="SokobanUncertain",
-    model="tadek",
-    episodes=1,
-    manual=True,
+    model="jano",
+    episodes=10,
+    manual=False,
     gif="test",
     maps = repo_root / "custom_maps/1player_2color_5x5",
-    max_episode_steps = 40  # maximum number of steps per episode (default: 200)
+    max_episode_steps = 10,  # maximum number of steps per episode (default: 200)
+    seed=2,
 )
 args = parser.parse_args([], namespace=_args)
-
-
-# def main(cli_args=[], **kwargs):
-#     args = parser.parse_args(cli_args, namespace=argparse.Namespace(**kwargs))
-# if __name__ == "__main__":
-#     main(cli_args=sys.argv[1:])
-
-# %%
-# Set seed for all randomness sources
-utils.seed(args.seed)
 
 # Set device
 print(f"Device: {device}\n")
@@ -72,9 +57,8 @@ print(f"Device: {device}\n")
 map_selector = MapSelector(
     custom_maps=args.maps, 
     curriculum_cutoff=20,
-    hardcode_level=-1,  # None
+    # hardcode_level=-1,  # None
 )
-
 # Load environment
 env = gym.make(
     args.env, 
@@ -83,12 +67,8 @@ env = gym.make(
     # seed=args.seed,
     # render_mode="human"
 )
-for _ in range(args.shift):
-    env.reset()
+env.reset(seed=args.seed)
 print("Environment loaded\n")
-
-
-# %%
 
 # %%
 
@@ -109,7 +89,6 @@ print("Agent loaded\n")
 import matplotlib
 matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt
-
 
 # Run the agent
 
@@ -145,59 +124,69 @@ if args.gif:
     from array2gif import write_gif
     frames = []
 
-env.reset()
-
 # Create a window to view the environment
 fig, ax = plt.subplots()
 plt.ion()
 plt.show(block=False)
 
 
+def update_fig(img):
+    ax.imshow(img)
+    plt.draw()
+    plt.pause(0.03)
+
+
 for episode in range(args.episodes):
     obs, _ = env.reset()
 
     while True:
-        # img = env.render()
-        ax.imshow(obs)
-        plt.draw()
-        plt.pause(0.05)
-
+        # process the image
+        img = env.render()
+        update_fig(img)
         if args.gif:
-            frames.append(numpy.moveaxis(obs, 2, 0))
+            frames.append(np.moveaxis(img, 2, 0))
 
+        # act on the observation
         if args.manual:
             action = get_manual_action(_)
             if action == 0:
-                break
+                break  # exit on esc
         else:
             action = agent.get_action(obs)
-
+        
+        # get state after action
         obs, reward, terminated, truncated, _ = env.step(action)
         done = terminated | truncated
         agent.analyze_feedback(reward, done)
 
+        # # print reward
+        # print(f"Reward: {env.unwrapped.reward_last:.2f}")
+
         if done:
-            if args.gif:
-                frames.append(numpy.moveaxis(obs, 2, 0))
-            frames.extend([frames[-1]] * 5)
-
-            # img = env.render()
-            ax.imshow(obs)
-            plt.draw()
-            plt.pause(0.05)
-
+            if args.manual:
+                # wait for keypress to close the window
+                _ = get_manual_action(_)
             break
+
+    # process the image
+    img = env.render()
+    update_fig(img)
+    if args.gif:
+        frames.append(np.moveaxis(img, 2, 0))
+        frames.extend([frames[-1]] * 5)
 
 if args.gif:
     print("Saving gif... ", end="")
-    write_gif(numpy.array(frames), args.gif + ".gif", fps=1 / args.pause)
+    frames = np.array(frames)
+    # scale up
+    scale = 1 # 40
+    frames = np.repeat(frames, scale, axis=2)
+    frames = np.repeat(frames, scale, axis=3)
+    write_gif(frames, args.gif + ".gif", fps=1 / args.pause)
     print("Done.")
+    print(np.array(frames).shape)
 
-# wait for keypress to close the window
-_ = get_manual_action(_)
 plt.ioff()
 plt.close()
 
 
-
-# %%
