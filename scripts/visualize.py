@@ -41,12 +41,12 @@ parser.add_argument("--text", action="store_true", default=False, help="add a GR
 
 _args = argparse.Namespace(
     env="SokobanUncertain",
-    model="typek",
+    model="fixxx",
     episodes=10,
     manual=False,
     gif="test",
     maps = repo_root / "custom_maps/1player_2color_5x5",
-    max_episode_steps = 10,  # maximum number of steps per episode (default: 200)
+    max_episode_steps = 20,  # maximum number of steps per episode (default: 200)
     seed=2,
 )
 args = parser.parse_args([], namespace=_args)
@@ -56,7 +56,7 @@ print(f"Device: {device}\n")
 
 map_selector = MapSelector(
     custom_maps=args.maps, 
-    curriculum_cutoff=20,
+    curriculum_cutoff=48*40,
     # hardcode_level=-1,  # None
 )
 # Load environment
@@ -102,16 +102,16 @@ def get_manual_action(obs):
 
             if event.key == keyboard.Key.up:
                 # print("up")
-                return 0
+                return 1
             elif event.key == keyboard.Key.down:
                 # print("down")
-                return 1
+                return 2
             elif event.key == keyboard.Key.left:
                 # print("left")
-                return 2
+                return 3
             elif event.key == keyboard.Key.right:
                 # print("right")
-                return 3
+                return 4
             elif event.key == keyboard.Key.esc:
                 # print("esc")
                 return -1
@@ -163,9 +163,6 @@ for episode in range(args.episodes):
         # print(f"Reward: {env.unwrapped.reward_last:.2f}")
 
         if done:
-            if args.manual:
-                # wait for keypress to close the window
-                _ = get_manual_action(_)
             break
 
     # process the image
@@ -175,11 +172,15 @@ for episode in range(args.episodes):
         frames.append(np.moveaxis(img, 2, 0))
         frames.extend([frames[-1]] * 5)
 
+# if args.manual:
+#     # wait for keypress to close the window
+#     _ = get_manual_action(_)
+
 if args.gif:
     print("Saving gif... ", end="")
     frames = np.array(frames)
     # scale up
-    scale = 1 # 40
+    scale = 40
     frames = np.repeat(frames, scale, axis=2)
     frames = np.repeat(frames, scale, axis=3)
     write_gif(frames, args.gif + ".gif", fps=1 / args.pause)
