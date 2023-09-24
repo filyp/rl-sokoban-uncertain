@@ -36,7 +36,7 @@ from model import ACModel
 
 import gymnasium as gym
 import gym_sokoban
-from gym_sokoban.envs.sokoban_uncertain import MapSelector
+from gym_sokoban.envs.map_selector import MapSelector
 
 os.environ["RL_STORAGE"] = (repo_root / "storage").as_posix()
 
@@ -47,14 +47,17 @@ class Args:
     # https://github.com/mpSchrader/gym-sokoban/blob/default/docs/variations/Boxoban.md
     env = "SokobanUncertain"  # name of the environment to train on (REQUIRED)
     # env = 'MiniGrid-DoorKey-5x5-v0'    # nrme of the environment to train on (REQUIRED)
-    maps = repo_root / "custom_maps/1player_2color_5x5"
 
-    model = "a"  # name of the model (default: {ENV}_{ALGO}_{TIME})
+    # maps = sorted((repo_root/"maps").glob("[!_]*"))
+    # maps = sorted((repo_root/"maps").glob("2*"))
+    maps = sorted((repo_root / "maps").glob("[23]_*"))
+
+    model = "n"  # name of the model (default: {ENV}_{ALGO}_{TIME})
     seed = 1  # random seed (default: 1)
     log_interval = 1  # number of updates between two logs (default: 1)
     save_interval = 10  # number of updates between two saves (default: 10, 0 means no saving)
     procs = 16  # number of processes (default: 16)
-    frames = 1600000  # number of frames of training (default: 1e7)
+    frames = 3000000  # number of frames of training (default: 1e7)
     max_episode_steps = 10  # maximum number of steps per episode (default: 200)
 
     # parameters for main algorithm
@@ -100,7 +103,8 @@ txt_logger.info(f"Device: {device}\n")
 # Load environments
 map_selector = MapSelector(
     custom_maps=args.maps,
-    # curriculum_cutoff=48*40,
+    p_random_map=1,
+    # curriculum_cutoff=96*40,
     # hardcode_level=-1,  # None
 )
 envs = []
@@ -227,10 +231,11 @@ while num_frames < args.frames:
             else:
                 to_print += " "
         to_print += ">"
-        # max width is 48, wrap around
+        # max width is 96, wrap around
         print()
-        for i in range(0, len(to_print), 48):
-            print(f"{i//48:3} |{to_print[i:i+48]}|")
+        print(f"    |{'certain':48}{'uncertain':48}|")
+        for i in range(0, len(to_print), 96):
+            print(f"{i//96:3} |{to_print[i:i+96]}|")
 
         # txt_logger.info(
         #     "U {} | F {:06} | FPS {:04.0f} | D {} | rR:μσmM {:6.2f} {:6.2f} {:6.2f} {:6.2f} | F:μσmM {:5.2f} {:5.2f} {:5.2f} {:5.2f} | curr_cutoff {:2.0f} | H {:.3f} | V {:.3f} | pL {:.3f} | vL {:.3f} | ∇ {:.3f}"
