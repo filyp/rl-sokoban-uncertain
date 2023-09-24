@@ -31,7 +31,7 @@ class ACModel(nn.Module, torch_ac.RecurrentACModel):
             # nn.ReLU(),
             # nn.Conv2d(16, 64, (3, 3), padding=1),
             # nn.ReLU(),
-            nn.Conv2d(10, 64, (3, 3), padding=0),
+            nn.Conv2d(11, 64, (3, 3), padding=0),
             nn.ReLU(),
             nn.Conv2d(64, 256, (3, 3), padding=0),
             nn.ReLU(),

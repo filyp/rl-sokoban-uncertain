@@ -9,7 +9,8 @@ import gymnasium as gym
 from pynput import keyboard
 
 import subprocess
-repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')
+
+repo_root = subprocess.check_output(["git", "rev-parse", "--show-toplevel"]).strip().decode("utf-8")
 repo_root = Path(repo_root)
 sys.path.append(repo_root.as_posix())
 sys.path.append((repo_root / "gym-sokoban").as_posix())
@@ -22,7 +23,7 @@ from gym_sokoban.envs.sokoban_uncertain import MapSelector
 
 os.environ["RL_STORAGE"] = (repo_root / "storage").as_posix()
 
-os.environ["QT_QPA_PLATFORM"] = "xcb" # to prevent warnings on wayland
+os.environ["QT_QPA_PLATFORM"] = "xcb"  # to prevent warnings on wayland
 
 # %%
 # Parse arguments
@@ -41,12 +42,12 @@ parser.add_argument("--text", action="store_true", default=False, help="add a GR
 
 _args = argparse.Namespace(
     env="SokobanUncertain",
-    model="fixxx",
+    model="uuu",
     episodes=10,
     manual=False,
     gif="test",
-    maps = repo_root / "custom_maps/1player_2color_5x5",
-    max_episode_steps = 20,  # maximum number of steps per episode (default: 200)
+    maps=repo_root / "custom_maps/1player_2color_5x5",
+    max_episode_steps=20,  # maximum number of steps per episode (default: 200)
     seed=2,
 )
 args = parser.parse_args([], namespace=_args)
@@ -55,13 +56,13 @@ args = parser.parse_args([], namespace=_args)
 print(f"Device: {device}\n")
 
 map_selector = MapSelector(
-    custom_maps=args.maps, 
-    curriculum_cutoff=48*40,
+    custom_maps=args.maps,
+    # curriculum_cutoff=48 * 40,
     # hardcode_level=-1,  # None
 )
 # Load environment
 env = gym.make(
-    args.env, 
+    args.env,
     max_episode_steps=args.max_episode_steps,
     map_selector=map_selector,
     # seed=args.seed,
@@ -87,10 +88,12 @@ print("Agent loaded\n")
 
 # %%
 import matplotlib
-matplotlib.use('Qt5Agg')
+
+matplotlib.use("Qt5Agg")
 import matplotlib.pyplot as plt
 
 # Run the agent
+
 
 def get_manual_action(obs):
     # The event listener will be running in this block
@@ -99,21 +102,17 @@ def get_manual_action(obs):
             # ignore release events
             if type(event) == keyboard.Events.Release:
                 continue
-
             if event.key == keyboard.Key.up:
-                # print("up")
                 return 1
             elif event.key == keyboard.Key.down:
-                # print("down")
                 return 2
             elif event.key == keyboard.Key.left:
-                # print("left")
                 return 3
             elif event.key == keyboard.Key.right:
-                # print("right")
                 return 4
+            elif event.key == keyboard.Key.space:
+                return 0
             elif event.key == keyboard.Key.esc:
-                # print("esc")
                 return -1
             else:
                 # print('Received event {}'.format(event))
@@ -122,6 +121,7 @@ def get_manual_action(obs):
 
 if args.gif:
     from array2gif import write_gif
+
     frames = []
 
 # Create a window to view the environment
@@ -136,7 +136,10 @@ def update_fig(img):
     plt.pause(0.03)
 
 
+_stop = False
 for episode in range(args.episodes):
+    if _stop:
+        break
     obs, _ = env.reset()
 
     while True:
@@ -150,17 +153,15 @@ for episode in range(args.episodes):
         if args.manual:
             action = get_manual_action(_)
             if action == -1:
+                _stop = True
                 break  # exit on esc
         else:
             action = agent.get_action(obs)
-        
+
         # get state after action
         obs, reward, terminated, truncated, _ = env.step(action)
         done = terminated | truncated
         agent.analyze_feedback(reward, done)
-
-        # # print reward
-        # print(f"Reward: {env.unwrapped.reward_last:.2f}")
 
         if done:
             break
@@ -171,10 +172,6 @@ for episode in range(args.episodes):
     if args.gif:
         frames.append(np.moveaxis(img, 2, 0))
         frames.extend([frames[-1]] * 5)
-
-# if args.manual:
-#     # wait for keypress to close the window
-#     _ = get_manual_action(_)
 
 if args.gif:
     print("Saving gif... ", end="")
@@ -189,5 +186,3 @@ if args.gif:
 
 plt.ioff()
 plt.close()
-
-
