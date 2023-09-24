@@ -28,7 +28,7 @@ import subprocess
 repo_root = subprocess.check_output(["git", "rev-parse", "--show-toplevel"]).strip().decode("utf-8")
 repo_root = Path(repo_root)
 sys.path.append(repo_root.as_posix())
-sys.path.append((repo_root / "gym-sokoban").as_posix())
+sys.path.append((repo_root / "gym-sokoban-uncertain").as_posix())
 
 import utils
 from utils import device
@@ -57,7 +57,7 @@ class Args:
     log_interval = 1  # number of updates between two logs (default: 1)
     save_interval = 10  # number of updates between two saves (default: 10, 0 means no saving)
     procs = 16  # number of processes (default: 16)
-    frames = 3000000  # number of frames of training (default: 1e7)
+    frames = 9000000  # number of frames of training (default: 1e7)
     max_episode_steps = 10  # maximum number of steps per episode (default: 200)
 
     # parameters for main algorithm

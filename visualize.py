@@ -13,7 +13,7 @@ import subprocess
 repo_root = subprocess.check_output(["git", "rev-parse", "--show-toplevel"]).strip().decode("utf-8")
 repo_root = Path(repo_root)
 sys.path.append(repo_root.as_posix())
-sys.path.append((repo_root / "gym-sokoban").as_posix())
+sys.path.append((repo_root / "gym-sokoban-uncertain").as_posix())
 
 import utils
 from utils import device
@@ -44,11 +44,12 @@ _args = argparse.Namespace(
     env="SokobanUncertain",
     model=None,
     maps=sorted((repo_root / "maps").glob("[23]_*")),
+    # maps=sorted((repo_root / "maps").glob("_assistance*")),
     manual=False,
     #
     gif="gifs/test",
     gif_scale=100,
-    episodes=30,
+    episodes=40,
     max_episode_steps=10,  # maximum number of steps per episode (default: 200)
     seed=0,
 )
