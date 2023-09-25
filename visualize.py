@@ -48,8 +48,8 @@ _args = argparse.Namespace(
     manual=False,
     #
     gif="gifs/test",
-    gif_scale=100,
-    episodes=50,
+    gif_scale=10,
+    episodes=10,
     max_episode_steps=10,  # maximum number of steps per episode (default: 200)
     seed=0,
 )
@@ -81,7 +81,9 @@ if args.model is not None:
     model_dir = utils.get_model_dir(args.model)
 else:
     # take the most recent model
-    models = (repo_root / "storage").iterdir()
+    models = list((repo_root / "storage").iterdir())
+    if not models:
+        raise RuntimeError("No models found")
     model_dir = max(models, key=lambda file: file.stat().st_mtime)
 
 agent = utils.Agent(
