@@ -49,7 +49,7 @@ _args = argparse.Namespace(
     #
     gif="gifs/test",
     gif_scale=100,
-    episodes=40,
+    episodes=50,
     max_episode_steps=10,  # maximum number of steps per episode (default: 200)
     seed=0,
 )
@@ -184,14 +184,14 @@ for episode in range(args.episodes):
 
 if args.gif:
     print("Saving gif... ", end="")
-    frames = np.array(frames)
+    frames = np.asarray(frames, dtype=np.uint8)
     # scale up
     frames = np.repeat(frames, args.gif_scale, axis=2)
     frames = np.repeat(frames, args.gif_scale, axis=3)
     gif_path = (repo_root / args.gif).as_posix() + ".gif"
     write_gif(frames, gif_path, fps=1 / args.pause)
     print("Done.")
-    print(np.array(frames).shape)
+    print(frames.shape)
 
 plt.ioff()
 plt.close()
